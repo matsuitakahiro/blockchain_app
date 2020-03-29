@@ -4,18 +4,30 @@ import hashlib
 
 
 from ecdsa import SigningKey
-from ecdsa import SECP256k1
+from ecdsa import NIST256p
 
 
-import utils
-
+import transaction
+import blockchain
 
 class Wallet(object):
 
     def __init__(self):
-        self._private_key = SigningKey.generate(curve=SECP256k1)
+        self._private_key = SigningKey.generate(curve=NIST256p)
         self._public_key = self._private_key.get_verifying_key()
-        self.blockchain_address = self.generate_blockchain_address()
+        self._blockchain_address = self.generate_blockchain_address()
+        
+    @property
+    def public_key(self):
+        return self._public_key.to_string().hex()
+
+    @property
+    def private_key(self):
+        return self._private_key.to_string().hex()
+
+    @property
+    def blockchain_address(self):
+        return self._blockchain_address
 
     def generate_blockchain_address(self):
         public_key_bytes = self._public_key.to_string()
@@ -49,7 +61,26 @@ class Wallet(object):
 
 
 if __name__ == '__main__':
-    wallet = Wallet()
-    print(f'private_key : {wallet._private_key.to_string().hex()}')
-    print(f'public_key : {wallet._public_key.to_string().hex()}')
-    print(f'blockchain_address : {wallet.blockchain_address}')
+    wallet_A = Wallet()
+    wallet_B = Wallet()
+    value = 100
+    print(f'wallet_A\'s blockchain_address : {wallet_A.blockchain_address}')
+    print(f'wallet_B\'s blockchain_address : {wallet_B.blockchain_address}')
+    print(f'value : {value}')
+    t = transaction.Transaction(
+            wallet_A.blockchain_address,
+            wallet_B.blockchain_address,
+            100,
+            wallet_A.private_key,
+            wallet_A.public_key
+        )
+    blockchain = blockchain.BlockChain()
+    blockchain.add_transaction(
+        sender_blockchain_address=wallet_A.blockchain_address,
+        recipient_blockchain_address=wallet_B.blockchain_address,
+        value=value,
+        sender_public_key=wallet_A.public_key,
+        signature=t.generate_signature()
+    )
+    blockchain.mining()
+    print(blockchain.print_chain())

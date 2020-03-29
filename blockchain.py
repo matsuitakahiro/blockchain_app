@@ -2,6 +2,15 @@ import hashlib
 import time
 import json
 
+from ecdsa import VerifyingKey
+from ecdsa import SigningKey
+from ecdsa import NIST256p
+
+import utils
+
+
+MINING_DIFFICULTY = 3
+
 
 class BlockChain(object):
 
@@ -46,15 +55,31 @@ class BlockChain(object):
           'transaction': transaction
         }
         guess_hash = self.make_hash(guess_block)
-        return guess_hash.startswith('0'*2)
+        return guess_hash.startswith('0'*MINING_DIFFICULTY)
 
-    def add_transaction(self, sender_name, recipient_name, value):
+    def add_transaction(self, sender_blockchain_address, recipient_blockchain_address,
+                        value, sender_public_key=None, signature=None):
         transaction = {
-            'sender_name': sender_name,
-            'recipient_name': recipient_name,
+            'sender_blockchain_address': sender_blockchain_address,
+            'recipient_blockchain_address': recipient_blockchain_address,
             'value': value
         }
-        self.transaction_pool.append(transaction)
+        if self.verify_transaction_signature(transaction, sender_public_key, signature):
+            self.transaction_pool.append(transaction)
+            return True
+        return False
+
+
+    def verify_transaction_signature(self, transaction, sender_public_key, signature):
+        sha256 = hashlib.sha256()
+        sha256.update(str(utils.sorted_dict_by_key(transaction)).encode('utf-8'))
+        message = sha256.digest()
+        verifying_key = VerifyingKey.from_string(
+            bytes().fromhex(sender_public_key), curve=NIST256p
+        )
+        signature_bytes = bytes().fromhex(signature)
+        verified_key = verifying_key.verify(signature_bytes, message)
+        return verified_key
 
     def print_chain(self):
         for chain_index, block in enumerate(self.chain):
@@ -87,12 +112,12 @@ class BlockChain(object):
 if __name__ == '__main__':
     # print('='*30 + 'Start' + '='*30)
     blockchain = BlockChain()
-    blockchain.add_transaction(sender_name='Alice', recipient_name='Bob', value=100)
-    blockchain.add_transaction(sender_name='Alice', recipient_name='Chris', value=1)
+    blockchain.add_transaction(sender_blockchain_address='Alice', recipient_blockchain_address='Bob', value=100)
+    blockchain.add_transaction(sender_blockchain_address='Alice', recipient_blockchain_address='Chris', value=1)
     blockchain.mining()
-    blockchain.add_transaction(sender_name='Bob', recipient_name='Dave', value=100)
+    blockchain.add_transaction(sender_blockchain_address='Bob', recipient_blockchain_address='Dave', value=100)
     blockchain.mining()
-    blockchain.add_transaction(sender_name='Chris', recipient_name='Dave', value=100)
+    blockchain.add_transaction(sender_blockchain_address='Chris', recipient_blockchain_address='Dave', value=100)
     blockchain.mining()
     blockchain.chain[2]['transaction'][0]['value'] = 10000
     blockchain.print_chain()
