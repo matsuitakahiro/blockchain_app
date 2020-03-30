@@ -2,6 +2,7 @@ import hashlib
 import time
 import json
 
+from ecdsa import BadSignatureError
 from ecdsa import VerifyingKey
 from ecdsa import SigningKey
 from ecdsa import NIST256p
@@ -36,6 +37,8 @@ class BlockChain(object):
         self.chain.append(block)
 
     def mining(self):
+        if not self.transaction_pool:
+            return
         previous_hash = self.make_hash(self.chain[-1])
         nonce = 0
         transaction = self.transaction_pool
@@ -64,11 +67,11 @@ class BlockChain(object):
             'recipient_blockchain_address': recipient_blockchain_address,
             'value': value
         }
+        # self.transaction_pool.append(transaction)
         if self.verify_transaction_signature(transaction, sender_public_key, signature):
             self.transaction_pool.append(transaction)
             return True
         return False
-
 
     def verify_transaction_signature(self, transaction, sender_public_key, signature):
         sha256 = hashlib.sha256()
@@ -78,8 +81,12 @@ class BlockChain(object):
             bytes().fromhex(sender_public_key), curve=NIST256p
         )
         signature_bytes = bytes().fromhex(signature)
-        verified_key = verifying_key.verify(signature_bytes, message)
-        return verified_key
+        try:
+            verified_key = verifying_key.verify(signature_bytes, message)
+            # return verified_key
+            return True
+        except BadSignatureError:
+            return False
 
     def print_chain(self):
         for chain_index, block in enumerate(self.chain):
@@ -93,7 +100,7 @@ class BlockChain(object):
                         for transaction in value:
                             print(f'{"transaction":15}:')
                             for kk, vv in transaction.items():
-                                print(f'\t{kk:15}:{vv}')
+                                print(f'\t{kk:30}:{vv}')
                     else:
                         print(f'{key:15}:{value}')
 
@@ -107,6 +114,19 @@ class BlockChain(object):
                     print(f'[Block {chain_index-1}]Falsification is detected!!')
                     return
         print('There is no falsification')
+
+    def calculate_amount(self, blockchain_address):
+        total_amount = 0.0
+        for block in self.chain:
+            if block['transaction'] is None:
+                continue
+            for transaction in block['transaction']:
+                value = transaction['value']
+                if transaction['sender_blockchain_address'] == blockchain_address:
+                    total_amount -= value
+                elif transaction['recipient_blockchain_address'] == blockchain_address:
+                    total_amount += value
+        return total_amount
 
 
 if __name__ == '__main__':

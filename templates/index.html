@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wallet</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script>
+        $(function () {
+            $('#reload_wallet').click(function () {
+                let message = {'blockchain_address': $('#blockchain_address').val()};
+                $.ajax({
+                    url: 'wallet/calculate',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: JSON.stringify(message),
+                    success: function(response) {
+                        let amount = document.getElementById('wallet_amount');
+                        amount.innerHTML = response['total_amount'];
+                        alert('Amount is reloaded')
+                    }
+                })
+            })
+
+
+            $('#generate_wallet').click(function () {
+                $.ajax({
+                    url: 'wallet/generate',
+                    type: 'POST',
+                    success: function (response) {
+                        $('#public_key').val(response['public_key']);
+                        $('#private_key').val(response['private_key']);
+                        $('#blockchain_address').val(response['blockchain_address']);
+                        alert('Your new wallet is generated!!');
+                        console.info(response);
+                    }
+                })
+             })
+
+             $('#send_money_button').click(function() {
+                let transaction_data = {
+                    'sender_blockchain_address': $('#blockchain_address').val(),
+                    'recipient_blockchain_address': $('#recipient_blockchain_address').val(),
+                    'value': $('#send_amount').val(),
+                    'sender_private_key': $('#private_key').val(),
+                    'sender_public_key': $('#public_key').val(),
+                };
+                $.ajax({
+                    url: 'transaction',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: JSON.stringify(transaction_data)
+                })
+                .then(
+                    function (response) {
+                        alert('success');
+                    },
+                    function (response) {
+                        alert('fail');
+                    }
+                );
+             })
+        })
+    </script>
+</head>
+<body>
+    <div>
+        <h1>Wallet</h1>
+        <div id="wallet_amount">0</div>
+        <button id="reload_wallet">Reload Wallet</button></br>
+        <button id="generate_wallet">Generate Wallet</button>
+        <p>Blockchain Address</p>
+        <textarea id="blockchain_address" rows="1" cols="100"></textarea>
+        <p>Public Key</p>
+        <textarea id="public_key" rows="2" cols="100"></textarea>
+        <p>Private Key</p>
+        <textarea id="private_key" rows="1" cols="100"></textarea>
+    </div>
+
+    <div>
+        <h1>Send Money</h1>
+        <div>
+            Address: <input id="recipient_blockchain_address" size="100"
+                            type="text"><br>
+            Amount: <input id="send_amount" type="text"><br>
+            <button id="send_money_button">Send</button>
+        </div>
+    </div>
+
+
+</body>
+</html>
